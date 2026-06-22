@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "CourierMax API",
+    "description": "Coleccion de ejemplo para la API de gestion de envios de CourierMax.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5220" },
+    { "key": "shipmentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Cotizar tarifa",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments/quote",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sender\": {\"name\": \"Ana\", \"phone\": \"3001112233\", \"address\": \"Calle 1\"},\n  \"recipient\": {\"name\": \"Luis\", \"phone\": \"3104445566\", \"address\": \"Carrera 2\"},\n  \"package\": {\"weightKg\": 5, \"lengthCm\": 30, \"widthCm\": 30, \"heightCm\": 30, \"type\": \"Fragil\"},\n  \"service\": \"Express\",\n  \"origin\": \"Bogota\",\n  \"destination\": \"Medellin\",\n  \"createdBy\": \"ana\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Crear envio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('shipmentId', pm.response.json().id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sender\": {\"name\": \"Ana\", \"phone\": \"3001112233\", \"address\": \"Calle 1\"},\n  \"recipient\": {\"name\": \"Luis\", \"phone\": \"3104445566\", \"address\": \"Carrera 2\"},\n  \"package\": {\"weightKg\": 50, \"lengthCm\": 40, \"widthCm\": 40, \"heightCm\": 40, \"type\": \"Paquete\"},\n  \"service\": \"Express\",\n  \"origin\": \"Bogota\",\n  \"destination\": \"Cali\",\n  \"createdBy\": \"ana\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Consultar envio por id",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/shipments/{{shipmentId}}"
+      }
+    },
+    {
+      "name": "Asignar (automatico)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments/{{shipmentId}}/assign",
+        "body": { "mode": "raw", "raw": "{\n  \"changedBy\": \"ana\"\n}" }
+      }
+    },
+    {
+      "name": "Marcar en transito",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments/{{shipmentId}}/in-transit",
+        "body": { "mode": "raw", "raw": "{\n  \"changedBy\": \"juan\"\n}" }
+      }
+    },
+    {
+      "name": "Marcar entregado",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments/{{shipmentId}}/deliver",
+        "body": { "mode": "raw", "raw": "{\n  \"changedBy\": \"juan\"\n}" }
+      }
+    },
+    {
+      "name": "Cancelar",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/shipments/{{shipmentId}}/cancel",
+        "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Cliente cancelo la compra\",\n  \"changedBy\": \"ana\"\n}" }
+      }
+    },
+    {
+      "name": "Envios atrasados",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/shipments/delayed?from=2026-06-01&to=2026-06-30"
+      }
+    },
+    {
+      "name": "Metricas de conductor",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/drivers/1/metrics"
+      }
+    },
+    {
+      "name": "Ciudades de referencia",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/reference/cities"
+      }
+    }
+  ]
+}
