@@ -1,0 +1,29 @@
+# Artefactos de compilacion
+**/bin/
+**/obj/
+**/out/
+
+# Entornos de IDE
+.vs/
+.idea/
+.vscode/
+
+# Git y metadatos
+.git/
+.gitignore
+**/*.user
+**/*.suo
+
+# Documentacion y pruebas (no se necesitan para construir la imagen del API)
+tests/
+docs/
+*.md
+
+# Resultados de pruebas / cobertura
+**/TestResults/
+**/*.trx
+**/coverage*.*
+
+# SO
+.DS_Store
+Thumbs.db

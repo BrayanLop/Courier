@@ -13,14 +13,17 @@ capas inspirada en Clean Architecture.
 
 - [Requisitos](#requisitos)
 - [Como ejecutar](#como-ejecutar)
+- [Como ejecutar con Docker](#como-ejecutar-con-docker)
 - [Como correr las pruebas](#como-correr-las-pruebas)
 - [Arquitectura](#arquitectura)
 - [Decisiones de diseño y justificacion](#decisiones-de-diseno-y-justificacion)
+- [Seguridad](#seguridad)
 - [Tecnologias](#tecnologias)
 - [Modelo de dominio y reglas](#modelo-de-dominio-y-reglas)
 - [Endpoints](#endpoints)
 - [Ejemplos de uso (curl)](#ejemplos-de-uso-curl)
 - [Datos de referencia](#datos-de-referencia)
+- [Despliegue](#despliegue)
 - [Supuestos y alcance](#supuestos-y-alcance)
 
 ---
@@ -47,6 +50,27 @@ http://localhost:5220/
 El almacenamiento es **en memoria**, de modo que los datos se reinician en cada
 arranque. Los catalogos de ciudades, vehiculos y conductores se cargan con los
 datos de referencia del enunciado.
+
+## Como ejecutar con Docker
+
+La solucion incluye un `Dockerfile` multi-stage (compila con el SDK y publica sobre
+la imagen `runtime`, mas liviana y con menor superficie de ataque). Requiere
+[Docker](https://www.docker.com/) instalado.
+
+```bash
+# Construir la imagen y levantar el contenedor (Swagger en http://localhost:8080)
+docker compose up --build
+```
+
+O directamente con la CLI de Docker:
+
+```bash
+docker build -t couriermax-api .
+docker run --rm -p 8080:8080 couriermax-api
+```
+
+El contenedor expone el puerto `8080` y ejecuta el proceso como un **usuario no-root**
+(`app`), por lo que la API queda en `http://localhost:8080/`.
 
 ## Como correr las pruebas
 
@@ -122,6 +146,40 @@ HTTP Request
 - **Manejo centralizado de errores.** Un unico middleware traduce las excepciones de
   dominio a respuestas `ProblemDetails` con el codigo HTTP correcto, sin filtrar
   detalles internos en los 500.
+
+## Seguridad
+
+La seguridad se trabajo como un criterio explicito de diseño. Lo que **ya esta
+implementado** en esta entrega:
+
+- **Validacion estricta de entradas (RN-04).** Todo `POST` pasa por FluentValidation
+  antes de tocar la logica de negocio: formato de telefono colombiano, rangos de peso
+  y dimensiones, ciudades contra catalogo y tipos via enum. Esto cierra la puerta a
+  datos malformados y reduce la superficie de abuso.
+- **Sin fuga de informacion en los errores.** El middleware nunca devuelve stack traces
+  ni mensajes internos al cliente; los errores no controlados se registran en el log y
+  el cliente solo recibe un `500` generico.
+- **Invariantes en el dominio.** Los value objects (`ContactInfo`, `PackageDetails`)
+  re-validan sus reglas en el constructor, de modo que aunque se evadiera la capa de
+  API el dominio no aceptaria estados invalidos (defensa en profundidad).
+- **Sin superficie de inyeccion.** Al usar almacenamiento en memoria y enums tipados
+  no hay concatenacion de SQL ni binding dinamico explotable.
+- **Contenedor endurecido.** La imagen Docker corre como usuario **no-root** y se basa
+  en la imagen `runtime` (sin SDK ni herramientas de compilacion en produccion).
+- **Superficie HTTP minima.** Solo se exponen los endpoints necesarios; el binding de
+  modelos automatico (`SuppressModelStateInvalidFilter`) se canaliza por un unico
+  pipeline de validacion, evitando comportamientos inconsistentes.
+
+**Fuera de alcance por el plazo de la prueba** (decisiones conscientes; en un entorno
+productivo se incorporarian):
+
+- **Autenticacion y autorizacion** (JWT / API Key). Hoy el "autor del cambio"
+  (`changedBy` / `createdBy`) se recibe en el cuerpo; en produccion vendria del usuario
+  autenticado (claims del token), no del cliente.
+- **HTTPS/HSTS obligatorio** terminado en el reverse proxy o en Kestrel.
+- **Rate limiting y CORS** restringido a los origenes confiables.
+- **Gestion de secretos** (variables de entorno / secret manager) y cabeceras de
+  seguridad (`X-Content-Type-Options`, `Content-Security-Policy`, etc.).
 
 ## Tecnologias
 
@@ -272,6 +330,35 @@ evitar problemas de codificacion; la validacion no distingue mayusculas/minuscul
 
 ---
 
+## Despliegue
+
+La aplicacion esta empaquetada como contenedor (`Dockerfile` + `docker-compose.yml`),
+lo que la hace portable a cualquier proveedor que ejecute contenedores. Pasos tipicos:
+
+```bash
+# 1. Construir la imagen
+docker build -t couriermax-api .
+
+# 2a. Local
+docker run --rm -p 8080:8080 couriermax-api
+
+# 2b. Publicar a un registry y desplegar (ejemplo conceptual)
+docker tag couriermax-api <registry>/couriermax-api:1.0
+docker push <registry>/couriermax-api:1.0
+```
+
+Opciones de nube compatibles sin cambios de codigo (la imagen escucha en `8080`):
+
+- **Azure** — Azure Container Apps o App Service for Containers.
+- **AWS** — ECS/Fargate o App Runner.
+- **GCP** — Cloud Run (despliegue directo desde la imagen).
+
+> Nota: el almacenamiento es en memoria, por lo que cada instancia/reinicio parte de
+> los datos de referencia. Para un despliegue real con estado persistente se conectaria
+> una base de datos detras de las interfaces de repositorio ya existentes.
+
+---
+
 ## Supuestos y alcance
 
 - **Autenticacion:** fuera de alcance para esta prueba. El "autor del cambio"
@@ -285,4 +372,6 @@ evitar problemas de codificacion; la validacion no distingue mayusculas/minuscul
   estado `Asignado` o `EnTransito`; al cancelar o entregar se libera (RN-03).
 - **Codigo de rastreo:** formato `CM-` seguido de 8 digitos; la unicidad se garantiza
   reintentando contra el repositorio antes de persistir (RN-05).
-- **Despliegue en nube:** no incluido (opcional/bonus segun el plazo de 3 dias).
+- **Despliegue en nube:** la app se entrega containerizada (`Dockerfile` +
+  `docker-compose.yml`), lista para publicar en cualquier proveedor de contenedores
+  (Azure Container Apps, AWS ECS/Fargate, GCP Cloud Run). Ver [Despliegue](#despliegue).
