@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using CourierMax.Api.Middleware;
 using CourierMax.Application;
 using CourierMax.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,11 +14,32 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// La validacion la maneja FluentValidation, no el ModelState automatico; se
-// desactiva la respuesta 400 por defecto para que el pipeline de errores sea uno solo.
-builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+// Las reglas de negocio se validan con FluentValidation en cada accion. El filtro
+// automatico de ModelState se mantiene solo para los errores de binding/deserializacion
+// (p. ej. un enum con un valor inexistente, que falla antes de que corra FluentValidation):
+// sin esto, el modelo llegaria nulo a la accion y produciria un 500. Se personaliza la
+// respuesta para devolver un 400 ProblemDetails uniforme y sin filtrar tipos internos.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
-    options.SuppressModelStateInvalidFilter = true;
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(kv => kv.Value is { Errors.Count: > 0 })
+            .ToDictionary(
+                kv => kv.Key,
+                _ => new[] { "El valor proporcionado no es valido." });
+
+        var problem = new ValidationProblemDetails(errors)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Uno o mas errores de validacion"
+        };
+
+        return new BadRequestObjectResult(problem)
+        {
+            ContentTypes = { "application/problem+json" }
+        };
+    };
 });
 
 builder.Services.AddEndpointsApiExplorer();

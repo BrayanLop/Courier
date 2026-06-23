@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
@@ -26,6 +27,7 @@
     <ProjectReference Include="..\..\src\CourierMax.Domain\CourierMax.Domain.csproj" />
     <ProjectReference Include="..\..\src\CourierMax.Application\CourierMax.Application.csproj" />
     <ProjectReference Include="..\..\src\CourierMax.Infrastructure\CourierMax.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\CourierMax.Api\CourierMax.Api.csproj" />
   </ItemGroup>
 
 </Project>
